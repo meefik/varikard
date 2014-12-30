@@ -3,7 +3,7 @@ varikard.py
 (C) 2011-2014 Anton Skshidlevsky <anton@cde.ifmo.ru>
 '''
 
-VERSION = '1.8'
+VERSION = '1.9'
 
 from time import time, sleep
 from math import trunc, sqrt
@@ -264,30 +264,27 @@ class VarikardAPI(Thread):
 
         # EKS filter
         x = 0.0
-        sl = len(signal)
+        sl = len(signal)/2
         for i in range(0,sl-1):
-            x += signal[i][4]-signal[i][3]
+            x1 = signal[i][4]-signal[i][3]
+            x2 = signal[i+sl][4]-signal[i+sl][3]
+            x += x1 - x2
         y = x / sl
-        # RR selector
-        x1 = signal[0][4]-signal[0][3]
-        x2 = signal[self.offset-1][4]-signal[self.offset-1][3]
-        yy = sqrt(abs(x2**2 - x1**2))
-        
+
         # EKS set
         #EKS.append(json.loads('{"x":'+str(time())+',"y":'+str(y)+'}'))
-        if self.debug:
-            EKS.append([time()*1000,yy])
-        else:
-            EKS.append([time()*1000,y])
+        EKS.append([time()*1000,y])
         if len(EKS) > self.export_eks:
             EKS.pop(0)
 
         # calc RR intervals
         pulse = False
-        if yy >= self.sensitivity and timer >= self.min_int:
+        if abs(y) >= self.sensitivity and timer >= self.min_int:
             if timer <= self.max_int:
                 lastRR = round(timer)
                 RR.append(lastRR)
+                # calc Heart Rate
+                HR = self.CalcHR(lastRR)
 
                 while sum(RR) > self.calc_time:
                     RR.pop(0)
@@ -296,8 +293,6 @@ class VarikardAPI(Thread):
                     # calc SI and IC
                     SI = self.CalcSI(RR)
                     IC = self.CalcIC(RR)
-                    # calc Heart Rate
-                    HR = self.CalcHR(RR)
 
                 lastTime = time()
                 pulse = True
@@ -348,7 +343,7 @@ class VarikardAPI(Thread):
         return ''.join( bytes )
 
     def CalcHR(self, x):
-        return (len(x)*60.0*1000)/self.calc_time
+        return round(1000.0/x*60.0)
 
     def CalcSI(self, x):
         dNN = 50  # milliseconds
