@@ -232,6 +232,10 @@ class VarikardAPI(Thread):
                     row = self.ser.read(self.pkg_size-1)
                     for i in range(1,self.pkg_size-1):
                         pkg[i] = ord(row[i])
+                    
+                    # skip bad packages
+                    if (pkg[1] < 128) or (pkg[1] > 255):
+                        continue
 
                     # dump EKS to file
                     if self.f_eks:
@@ -253,8 +257,10 @@ class VarikardAPI(Thread):
                     # pulse indicate
                     if pulse:
                         self.ser.write("\x7E\xC1\x3F") # on
+                        lastPulse = time();
                     else:
-                        self.ser.write("\x7E\xC0\x3E") # off
+                        if (time() - lastTime) > 200:
+                            self.ser.write("\x7E\xC0\x3E") # off
 
     def CalcRR(self):
 
@@ -276,14 +282,17 @@ class VarikardAPI(Thread):
             return False
 
         # EKS filter
-        x = 0.0
-        sl = len(signal)/2
-        for i in range(0,sl-1):
-            x1 = signal[i][4]-signal[i][3]
-            x2 = signal[i+sl][4]-signal[i+sl][3]
-            x += x1 - x2
-        y = x / sl
-
+        if len(signal) > 1:
+            x = 0.0
+            sl = len(signal)/2
+            for i in range(0,sl-1):
+                x1 = signal[i][4]-signal[i][3]
+                x2 = signal[i+sl][4]-signal[i+sl][3]
+                x += x1 - x2
+            y = x / sl
+        else:
+            y = signal[0][4]-signal[0][3]
+        
         # EKS set
         #EKS.append(json.loads('{"x":'+str(time())+',"y":'+str(y)+'}'))
         EKS.append([time()*1000,y])
