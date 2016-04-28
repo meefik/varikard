@@ -104,6 +104,7 @@ class VarikardAPI(Thread):
         self.csv_file = params['csv_file']
         self.debug = params['debug']
         self.serial_port = params['serial_port']
+        self.amplification = params['amplification']
         if len(params['kig_file']) > 0:
             self.f_kig = open(params['kig_file'], 'w')
         else:
@@ -158,7 +159,21 @@ class VarikardAPI(Thread):
         
             print "initialize device (Varikard 2.51)"
             # initialize device string
-            byteStr = "\x16\x7E\xD0\x4E\x7E\xD0\x00\x4E\x7E\xB3\x31\x7E\xB3\x31\x7E\x01\x7F\x7E\xA1\x1F\x7E\x92\x10"
+            byteStr = "\x7E\xB3\x31\x7E\xB3\x31\x7E\x01\x7F\x7E\xA1\x1F"
+
+            print "amplification: %s mm/mV" % self.amplification
+            # set amplification: 5, 10, 20, 40, 80 mm/mV
+            if self.amplification == 5:  
+                byteStr += "\x7E\x91\x0F"
+            if self.amplification == 10:  
+                byteStr += "\x7E\x92\x10"
+            if self.amplification == 20:  
+                byteStr += "\x7E\x93\x11"
+            if self.amplification == 40:  
+                byteStr += "\x7E\x94\x12"
+            if self.amplification == 80:  
+                byteStr += "\x7E\x95\x13"
+                
             # send the characters to the device
             self.ser.write(byteStr)
 
@@ -237,11 +252,9 @@ class VarikardAPI(Thread):
 
                     # pulse indicate
                     if pulse:
-                        byteStr = "\x7E\xC1\x3F" # on
-                        self.ser.write(byteStr)
+                        self.ser.write("\x7E\xC1\x3F") # on
                     else:
-                        byteStr = "\x7E\xC0\x3E" # off
-                        self.ser.write(byteStr)
+                        self.ser.write("\x7E\xC0\x3E") # off
 
     def CalcRR(self):
 
@@ -425,6 +438,7 @@ def main(argv):
     'debug': options.debug,
     'csv_file': (options.csv_file,False)[options.csv_file == None],
     'serial_port': config.get('general', 'serial_port'),
+    'amplification': int(config.get('filter', 'amplification')),
     'kig_file': config.get('general', 'kig_file'),
     'eks_file': config.get('general', 'eks_file'),
     'hex_format': config.get('general', 'hex_format').lower() in ("yes", "true", "1"),
